@@ -2,6 +2,7 @@
 
 import { useReducer, useState } from "react";
 import { scoreReducer, type ScoreState } from "@/lib/stateMachine";
+import { aggregate } from "@/lib/aggregate";
 
 const SUBMISSION_TEXT = `I went deep on the audience side first. The TEDxManchester ticket data shows 62 percent of attendees are 28 to 42, professional, design conscious. I built a single master deck that leans into that. Then I tailored three versions, one for Marks and Spencer, one for Lululemon, one for Ace Hotel. The pricing tiers are 5k, 15k, 35k. I decided against programmatic banner ads because the audience hates them.`;
 
@@ -50,6 +51,43 @@ export default function Home() {
     }
   }
 
+  function handleScoreChange(index: number, value: string) {
+    if (!state.scores) return;
+
+    // Only allow digits
+    const digitsOnly = value.replace(/\D/g, "");
+
+    // Parse and clamp to 0-20
+    let numValue = digitsOnly === "" ? 0 : parseInt(digitsOnly, 10);
+    numValue = Math.max(0, Math.min(20, numValue));
+
+    const updatedScores = state.scores.map((pillar, i) =>
+      i === index ? { ...pillar, score: numValue } : pillar
+    );
+
+    dispatch({ type: "edit", scores: updatedScores });
+  }
+
+  function handleFeedbackChange(index: number, value: string) {
+    if (!state.scores) return;
+
+    const updatedScores = state.scores.map((pillar, i) =>
+      i === index ? { ...pillar, feedback: value } : pillar
+    );
+
+    dispatch({ type: "edit", scores: updatedScores });
+  }
+
+  // Compute total and tier from aggregate function
+  function getAggregateResult() {
+    if (!state.scores) return null;
+
+    const scores = state.scores.map((p) => p.score) as [number, number, number, number, number];
+    return aggregate(scores);
+  }
+
+  const aggregateResult = getAggregateResult();
+
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-2xl mx-auto">
@@ -86,25 +124,50 @@ export default function Home() {
 
         {state.scores && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-medium uppercase tracking-wide px-2 py-1 bg-amber-100 text-amber-800 rounded">
                 {state.workflowState}
               </span>
+
+              {aggregateResult && (
+                aggregateResult.ok ? (
+                  <div className="text-right">
+                    <span className="text-2xl font-semibold">{aggregateResult.total}</span>
+                    <span className="text-stone-400">/100</span>
+                    <span className="ml-3 px-2 py-1 text-sm bg-stone-100 text-stone-700 rounded">
+                      {aggregateResult.tier}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-red-600 text-sm">{aggregateResult.error}</div>
+                )
+              )}
             </div>
 
-            {state.scores.map((pillar) => (
+            {state.scores.map((pillar, index) => (
               <div
                 key={pillar.name}
                 className="bg-white rounded-lg border border-stone-200 p-4"
               >
-                <div className="flex justify-between items-start mb-2">
+                <div className="flex justify-between items-center mb-3">
                   <h3 className="font-medium">{pillar.name}</h3>
-                  <span className="text-stone-600">
-                    {pillar.score}
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={pillar.score}
+                      onChange={(e) => handleScoreChange(index, e.target.value)}
+                      className="w-12 text-right border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-stone-400"
+                    />
                     <span className="text-stone-400">/20</span>
-                  </span>
+                  </div>
                 </div>
-                <p className="text-sm text-stone-600">{pillar.feedback}</p>
+                <textarea
+                  value={pillar.feedback}
+                  onChange={(e) => handleFeedbackChange(index, e.target.value)}
+                  rows={2}
+                  className="w-full text-sm text-stone-600 border border-stone-200 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-stone-400 resize-none"
+                />
               </div>
             ))}
           </div>
