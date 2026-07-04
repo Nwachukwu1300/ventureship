@@ -52,3 +52,45 @@ export function guardEdit<T>(current: State, editValue: T): EditResult<T> {
   }
   return { ok: true, value: editValue };
 }
+
+/**
+ * Reducer for score editing with enforced guard.
+ * Components dispatch actions; the reducer enforces the guard internally.
+ * This prevents bypassing the edit guard by directly mutating state.
+ */
+export type ScoreState<T> = {
+  workflowState: State;
+  scores: T;
+  error: string | null;
+};
+
+export type ScoreAction<T> =
+  | { type: "edit"; scores: T }
+  | { type: "transition_to_reviewed" }
+  | { type: "transition_to_published" };
+
+export function scoreReducer<T>(state: ScoreState<T>, action: ScoreAction<T>): ScoreState<T> {
+  switch (action.type) {
+    case "edit": {
+      const result = guardEdit(state.workflowState, action.scores);
+      if (!result.ok) {
+        return { ...state, error: result.error };
+      }
+      return { ...state, scores: result.value, error: null };
+    }
+    case "transition_to_reviewed": {
+      const result = transitionToReviewed(state.workflowState);
+      if (!result.ok) {
+        return { ...state, error: result.error };
+      }
+      return { ...state, workflowState: result.state, error: null };
+    }
+    case "transition_to_published": {
+      const result = transitionToPublished(state.workflowState);
+      if (!result.ok) {
+        return { ...state, error: result.error };
+      }
+      return { ...state, workflowState: result.state, error: null };
+    }
+  }
+}

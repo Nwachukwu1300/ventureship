@@ -3,6 +3,8 @@ import {
   guardEdit,
   transitionToReviewed,
   transitionToPublished,
+  scoreReducer,
+  type ScoreState,
 } from "./stateMachine";
 
 describe("stateMachine", () => {
@@ -41,6 +43,30 @@ describe("stateMachine", () => {
       if (!result.ok) {
         expect(result.error).toContain("Cannot transition");
       }
+    });
+  });
+
+  describe("scoreReducer", () => {
+    it("rejects edits in published state via reducer", () => {
+      const state: ScoreState<number[]> = {
+        workflowState: "published",
+        scores: [18, 18, 18, 18, 18],
+        error: null,
+      };
+      const newState = scoreReducer(state, { type: "edit", scores: [20, 20, 20, 20, 20] });
+      expect(newState.error).toBe("This score is published and locked");
+      expect(newState.scores).toEqual([18, 18, 18, 18, 18]); // unchanged
+    });
+
+    it("allows edits in draft state via reducer", () => {
+      const state: ScoreState<number[]> = {
+        workflowState: "draft",
+        scores: [10, 10, 10, 10, 10],
+        error: null,
+      };
+      const newState = scoreReducer(state, { type: "edit", scores: [15, 15, 15, 15, 15] });
+      expect(newState.error).toBeNull();
+      expect(newState.scores).toEqual([15, 15, 15, 15, 15]);
     });
   });
 });
