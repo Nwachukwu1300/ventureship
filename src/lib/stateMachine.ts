@@ -65,12 +65,16 @@ export type ScoreState<T> = {
 };
 
 export type ScoreAction<T> =
+  | { type: "set_scores"; scores: T }
   | { type: "edit"; scores: T }
   | { type: "transition_to_reviewed" }
   | { type: "transition_to_published" };
 
 export function scoreReducer<T>(state: ScoreState<T>, action: ScoreAction<T>): ScoreState<T> {
   switch (action.type) {
+    case "set_scores": {
+      return { ...state, scores: action.scores, workflowState: "draft", error: null };
+    }
     case "edit": {
       const result = guardEdit(state.workflowState, action.scores);
       if (!result.ok) {
